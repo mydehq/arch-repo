@@ -32,6 +32,25 @@ log-success() { echo -e "${GREEN}+ ${NC} $*"; }
 log-warn()    { echo -e "${YELLOW}! ${NC} $*"; }
 log-error()   { echo -e "${RED}x ${NC} $*" >&2; }
 
+# Extract and install build dependencies
+install-pkg-deps() {
+    local pkg_dir="$1"
+    local pkgbuild="${pkg_dir}/PKGBUILD"
+    
+    log-info "Installing build dependencies from PKGBUILD..."
+    
+    local makedeps
+    makedeps=$(bash -c "source $pkgbuild && echo \${makedepends[@]}" | xargs)
+    
+    if [[ -n "$makedeps" ]]; then
+        log-info "Installing build dependencies: $makedeps"
+        if ! sudo pacman -S --noconfirm --needed $makedeps; then
+            log-error "Failed to install build dependencies for $(basename "$pkg_dir")"
+            return 1
+        fi
+    fi
+}
+
 # Get version of package from repo database
 get-repo-version() {
     local pkg_name="$1"
@@ -100,8 +119,12 @@ build-package() {
     
     pushd "$pkg_dir" > /dev/null
     
+    # Install dependencies manually
+    install-pkg-deps "."
+    
     # Build package
-    if ! makepkg --noconfirm --nodeps; then
+    # Build package
+    if ! makepkg --noconfirm --force; then
         log-error "Build failed for ${pkg_name}"
         popd > /dev/null
         return 1
@@ -121,6 +144,10 @@ build-package() {
     for pkg_file in $pkg_files; do
         cp "$pkg_file" "${BUILD_DIR}/${ARCH}/"
         log-success "Copied $(basename "$pkg_file") to ${BUILD_DIR}/${ARCH}/"
+        
+        # Cleanup artifact to keep cache clean
+        rm -f "$pkg_file"
+        log-info "Removed artifact from cache: $(basename "$pkg_file")"
     done
 }
 
@@ -147,8 +174,68 @@ update-repo-database() {
 }
 
 
+# Generate a static landing page
+generate-landing-page() {
+    local template="src/index.html"
+    local output="${BUILD_DIR}/index.html"
+    
+    if [[ ! -f "$template" ]]; then
+        log-warn "Landing page template not found: $template. Skipping generation."
+        return
+    fi
+    
+    echo ""
+    log-info "Generating static landing page..."
+    
+    local package_rows=""
+    local pkg_count
+    pkg_count=$(yq '.packages | length' "$PACKAGES_FILE")
+    
+    for ((i=0; i<pkg_count; i++)); do
+        local pkg_name pkg_version
+        pkg_name=$(yq ".packages[$i].name" "$PACKAGES_FILE")
+        pkg_version=$(get-repo-version "$pkg_name")
+        
+        # If version not found in repo, skip from landing page
+        [[ -z "$pkg_version" ]] && continue
+        
+        # Build individual row
+        package_rows+="<tr>"
+        package_rows+="<td class='ps-3'><span class='package-name text-mauve'>${pkg_name}</span></td>"
+        package_rows+="<td class='text-center'><span class='badge rounded-pill badge-version'>${pkg_version}</span></td>"
+        package_rows+="<td class='text-end pe-3 text-secondary'>${ARCH}</td>"
+        package_rows+="</tr>"
+    done
+    
+    # Read template and replace placeholders
+    local content
+    content=$(<"$template")
+    content="${content//\{\{REPO_NAME\}\}/$REPO_NAME}"
+    content="${content//\{\{LAST_UPDATED\}\}/$(date -Iminutes)}"
+    content="${content//\{\{PACKAGE_COUNT\}\}/$pkg_count}"
+    content="${content//\{\{PACKAGE_ROWS\}\}/$package_rows}"
+    
+    echo "$content" > "$output"
+    
+    # Copy icon if exists
+    if [[ -f "src/icon.png" ]]; then
+        cp "src/icon.png" "$BUILD_DIR/"
+        log-success "Copied icon.png to build directory"
+    fi
+    
+    log-success "Landing page generated at ${output}"
+    
+    # Generate Repository README
+    if [[ -f "src/repo-README.md" ]]; then
+        cp "src/repo-README.md" "$BUILD_DIR/README.md"
+        log-success "Repository README generated at $BUILD_DIR/README.md"
+    fi
+}
+
+
 # Main function
 main() {
+    echo ""
     log-info "Starting AUR package build process"
     
     # Validate requirements
@@ -190,6 +277,7 @@ main() {
         pkg_name=$(yq ".packages[$i].name" "$PACKAGES_FILE")
         force_build=$(yq ".packages[$i].force // false" "$PACKAGES_FILE")
         
+        echo ""
         log-info "Processing package: ${pkg_name}"
         
         # Clone/update from AUR
@@ -244,6 +332,9 @@ main() {
     log-info "  Built:   ${built_count}"
     log-info "  Skipped: ${skipped_count}"
     log-info "  Failed:  ${failed_count}"
+    
+    # Generate landing page
+    generate-landing-page
     
     if [[ $failed_count -gt 0 ]]; then
         exit 1

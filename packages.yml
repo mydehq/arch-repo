@@ -1,7 +1,14 @@
-# Format:
-#    - name: <package_name>
-#      force: <true|false>  # Optional, defaults to false
 packages:
+  # Official projects
   - name: myctl
+  # - name: mytm
+  - name: nautilus-dummy
+
+  # 3rd party
+  - name: mpv-mpris2-bin
   - name: vicinae-bin
+  - name: app2unit
   - name: catppuccin-cursors-macchiato
+  - name: vorta-root
+  - name: ttf-sil-abyssinica  
+  - name: git-credential-keepassxc-bin
