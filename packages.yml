@@ -1,0 +1,7 @@
+# Format:
+#    - name: <package_name>
+#      force: <true|false>  # Optional, defaults to false
+packages:
+  - name: myctl
+  - name: vicinae-bin
+  - name: catppuccin-cursors-macchiato
