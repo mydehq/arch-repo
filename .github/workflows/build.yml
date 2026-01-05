@@ -27,7 +27,10 @@ jobs:
       - name: Setup Arch Linux environment
         run: |
           pacman -Syu --noconfirm
-          pacman -S --noconfirm base-devel git go-yq jq
+          pacman -S --noconfirm base-devel git go-yq
+
+          # Disable debug package generation
+          sed -i 's/OPTIONS=(.*debug.*/OPTIONS=(!debug)/' /etc/makepkg.conf
 
       - name: Checkout main branch
         uses: actions/checkout@v4
@@ -36,8 +39,8 @@ jobs:
 
       - name: Configure Git
         run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
+          git config --global user.name "Soumadip Das"
+          git config --global user.email "84225810+soymadip@users.noreply.github.com"
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Check & create repo branch
@@ -68,7 +71,7 @@ jobs:
 
       - name: Create build user
         run: |
-          # devtools requires non-root user for building
+          # makepkg refuses to run as root
           useradd -m builder
           echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
           chown -R builder:builder .
@@ -81,8 +84,11 @@ jobs:
         run: |
           cd build
 
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
+          # Initialize git if not already a repo
+          if [ ! -d ".git" ]; then
+            git init
+            git remote add origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          fi
 
           git add .
 
