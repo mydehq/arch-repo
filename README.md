@@ -2,23 +2,24 @@
     <img src="./src/icon.png" alt="MyTM" width="80">
     <h1>arch-repo</h1>
     <p>
-        <b>Arch repo with automated built selected packages from AUR</b>
+        <b>Automated building repo for AUR packages</b>
     </p>
 </div>
-
-
 
 ## Installation
 
 - Add the repo to `pacman.conf`:
+
     ```sh
     sudo bash -c 'printf "\n[mydehq]\nSigLevel = Optional TrustAll\nServer = https://mydehq.github.io/arch-repo/\$arch\n" >> /etc/pacman.conf'
     ```
+
 - Update the system:
 
    ```sh
     pacman -Sy
    ```
+
 ---
 
 <br>
@@ -39,7 +40,6 @@
 - Builds run in clean Arch chroots
 - Built artifacts are published via GitHub Pages (deployed from repo branch)
 - Build logic and publishing logic are strictly separated
-
 
 ### Scope (Hard Constraints)
 
@@ -66,6 +66,7 @@
 ### Repository Structure
 
 - main branch:
+
 ```text
 arch-repo/
 ├── build.sh                 # build-only script (root)
@@ -103,20 +104,19 @@ packages:
     3. If it doesn't exist, make.
     3. Run src/build.sh
     5. Commit changes & push
-    6. It should keep only one commit in repo branch. History should be deleted else the repo will become too big over time. 
+    6. It should keep only one commit in repo branch. History should be deleted else the repo will become too big over time.
     7. Let GitHub Pages serve it
 
 - CI environment:
-    - Arch Linux container
-    - Installed tools:
+  - Arch Linux container
+  - Installed tools:
         1. base-devel
         2. devtools
         3. git
         4. yq (go-yq)
         5. jq
 
-
-### Build Script (build.sh) 
+### Build Script (build.sh)
 
 - What build.sh MUST do:
     1. Read packages.yml
