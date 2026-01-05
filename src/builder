@@ -200,7 +200,7 @@ generate-landing-page() {
         
         # Build individual row
         package_rows+="<tr>"
-        package_rows+="<td class='ps-3'><span class='package-name text-mauve'>${pkg_name}</span></td>"
+        package_rows+="<td class='ps-3'><a href='https://aur.archlinux.org/packages/${pkg_name}' target='_blank' class='package-name text-decoration-none'>${pkg_name}</a></td>"
         package_rows+="<td class='text-center'><span class='badge rounded-pill badge-version'>${pkg_version}</span></td>"
         package_rows+="<td class='text-end pe-3 text-secondary'>${ARCH}</td>"
         package_rows+="</tr>"
@@ -319,16 +319,16 @@ main() {
         local needs_build=false
         
         if [[ -z "$repo_version" ]]; then
-            log-info "  → Package not in repo, building..."
+            log-warn "Package not in repo, building..."
             needs_build=true
         elif [[ "$repo_version" != "$aur_version" ]]; then
-            log-info "  → Version mismatch, building..."
+            log-warn "Version mismatch, building..."
             needs_build=true
         elif [[ "$force_build" == "true" ]]; then
-            log-info "  → Force flag set, building..."
+            log-warn "Force flag set, building..."
             needs_build=true
         else
-            log-info "  → Already up-to-date, skipping"
+            log-info "Up-to-date, skipping"
             ((skipped_count++)) || true
         fi
 
