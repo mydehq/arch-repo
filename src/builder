@@ -100,8 +100,8 @@ build-package() {
     
     pushd "$pkg_dir" > /dev/null
     
-    # Build using makepkg
-    if ! makepkg --noconfirm; then
+    # Build package
+    if ! makepkg --noconfirm --nodeps; then
         log-error "Build failed for ${pkg_name}"
         popd > /dev/null
         return 1
