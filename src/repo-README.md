@@ -1,4 +1,4 @@
-# MyDEHQ Arch Linux Repository
+<center><h1>Arch Repository</h1></center>
 
 This branch contains the built binaries and repository metadata for the MyDEHQ Arch Linux Repository.
 
