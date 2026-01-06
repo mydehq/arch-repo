@@ -16,3 +16,4 @@ packages:
   - name: catnap
   - name: python-textual-fastdatatable-latest
   - name: sqlit
+  - name: dumber-browser-bin
