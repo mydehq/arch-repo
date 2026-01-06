@@ -12,4 +12,4 @@ packages:
   - name: vorta-root
   - name: ttf-sil-abyssinica  
   - name: git-credential-keepassxc-bin
-  - name: catnap-git
+  - name: catnap
