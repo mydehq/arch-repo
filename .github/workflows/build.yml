@@ -28,6 +28,16 @@ jobs:
       image: archlinux:latest
 
     steps:
+      - name: Cache Pacman Packages and AUR
+        uses: actions/cache@v4
+        with:
+          path: |
+            /var/cache/pacman/pkg
+            aur
+          key: pacman-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: |
+            pacman-${{ runner.os }}-
+
       - name: Setup Arch Linux environment
         run: |
           pacman -Syu --noconfirm

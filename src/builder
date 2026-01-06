@@ -63,7 +63,7 @@ get-repo-version() {
     
     # Extract version from repo database
     local version
-    version=$(tar -tzf "$db_file" 2>/dev/null | grep "^${pkg_name}-[^/]*/desc$" | head -1 | sed "s|^${pkg_name}-\(.*\)/desc$|\1|") || true
+    version=$(tar -tzf "$db_file" 2>/dev/null | grep "^${pkg_name}-[^-]\+-[^-]\+/desc$" | head -1 | sed "s|^${pkg_name}-\(.*\)/desc$|\1|") || true
     echo "$version"
 }
 
@@ -253,6 +253,30 @@ generate-landing-page() {
 }
 
 
+# Clean up unused AUR clones
+cleanup-aur() {
+    log-info "Cleaning up AUR cache..."
+    
+    if [[ ! -d "$AUR_CLONE_DIR" ]]; then
+        return
+    fi
+
+    local valid_pkgs
+    valid_pkgs=$(yq '.packages[].name' "$PACKAGES_FILE")
+    
+    for dir in "$AUR_CLONE_DIR"/*; do
+        [[ -d "$dir" ]] || continue
+        local pkg_name
+        pkg_name=$(basename "$dir")
+        
+        # Check if package is in the valid list
+        if ! echo "$valid_pkgs" | grep -q "^${pkg_name}$"; then
+            log-warn "Removing unused AUR clone: $pkg_name"
+            rm -rf "$dir"
+        fi
+    done
+}
+
 # Main function
 main() {
     echo ""
@@ -354,6 +378,9 @@ main() {
     log-info "  Skipped: ${skipped_count}"
     log-info "  Failed:  ${failed_count}"
     
+    # Cleanup unused AUR repos
+    cleanup-aur
+
     # Generate landing page
     generate-landing-page
     
