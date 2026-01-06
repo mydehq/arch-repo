@@ -13,6 +13,7 @@ set -euo pipefail
 
 # Configuration
 REPO_NAME="mydehq"
+REPO_URL="https://${REPO_NAME}.github.io/arch-repo"
 PACKAGES_FILE="packages.yml"
 BUILD_DIR="build"
 ARCH="x86_64"
@@ -27,27 +28,30 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Logging functions (MyTM style)
-log-info()    { echo -e "${BLUE}i ${NC} $*"; }
-log-success() { echo -e "${GREEN}+ ${NC} $*"; }
-log-warn()    { echo -e "${YELLOW}! ${NC} $*"; }
-log-error()   { echo -e "${RED}x ${NC} $*" >&2; }
+log()         { echo -e "${BLUE}-${NC} $*"; }
+log.info()    { echo -e "${BLUE}i $* ${NC}"; }
+log.success() { echo -e "${GREEN}+ $* ${NC}"; }
+log.warn()    { echo -e "${YELLOW}! $* ${NC}"; }
+log.error()   { echo -e "${RED}x $* ${NC}" >&2; }
 
 # Extract and install build dependencies
 install-pkg-deps() {
     local pkg_dir="$1"
     local pkgbuild="${pkg_dir}/PKGBUILD"
     
-    log-info "Installing build dependencies from PKGBUILD..."
+    log.info "Checking for build dependencies"
     
     local makedeps
     makedeps=$(bash -c "source $pkgbuild && echo \${makedepends[@]}" | xargs)
     
     if [[ -n "$makedeps" ]]; then
-        log-info "Installing build dependencies: $makedeps"
+        log "  Installing: $makedeps"
         if ! sudo pacman -S --noconfirm --needed $makedeps; then
-            log-error "Failed to install build dependencies for $(basename "$pkg_dir")"
+            log.error "Failed to install build dependencies for $(basename "$pkg_dir")"
             return 1
         fi
+    else
+        log "  No build dependencies found"
     fi
 }
 
@@ -96,15 +100,15 @@ clone-aur-package() {
     local pkg_dir="${AUR_CLONE_DIR}/${pkg_name}"
     
     if [[ -d "$pkg_dir" ]]; then
-        log-info "Updating existing clone: ${pkg_name}"
+        log "  Updating cache"
         git -C "$pkg_dir" pull --quiet
     else
-        log-info "Cloning from AUR: ${pkg_name}"
+        log "  Cloning from AUR"
         git clone --quiet "${AUR_BASE_URL}/${pkg_name}.git" "$pkg_dir"
     fi
     
     if [[ ! -f "${pkg_dir}/PKGBUILD" ]]; then
-        log-error "No PKGBUILD found for ${pkg_name}"
+        log.error "No PKGBUILD found for ${pkg_name}"
         return 1
     fi
 }
@@ -115,7 +119,8 @@ build-package() {
     local pkg_name="$1"
     local pkg_dir="${AUR_CLONE_DIR}/${pkg_name}"
     
-    log-info "Building ${pkg_name}..."
+    echo ""
+    log.info "Building ${pkg_name}..."
     
     pushd "$pkg_dir" > /dev/null
     
@@ -124,29 +129,31 @@ build-package() {
     
     # Build package
     if ! makepkg --noconfirm --nodeps --force; then
-        log-error "Build failed for ${pkg_name}"
+        echo ""
+        log.error "Build failed for ${pkg_name}"
         popd > /dev/null
         return 1
     fi
     
     popd > /dev/null
     
+    echo ""
+
     # Copy built packages to build directory
     local pkg_files
     pkg_files=$(find "$pkg_dir" -maxdepth 1 -name "*.pkg.tar.zst" -o -name "*.pkg.tar.xz" 2>/dev/null)
     
     if [[ -z "$pkg_files" ]]; then
-        log-error "No package files found after build for ${pkg_name}"
+        log.error "No package files found after build for ${pkg_name}"
         return 1
     fi
     
     for pkg_file in $pkg_files; do
         cp "$pkg_file" "${BUILD_DIR}/${ARCH}/"
-        log-success "Copied $(basename "$pkg_file") to ${BUILD_DIR}/${ARCH}/"
-        
+        log.success "Packaged: $(basename "$pkg_file")"
+
         # Cleanup artifact to keep cache clean
-        rm -f "$pkg_file"
-        log-info "Removed artifact from cache: $(basename "$pkg_file")"
+        rm -f "$pkg_file" || log.error "Failed to remove artifact: $(basename "$pkg_file")"
     done
 }
 
@@ -155,7 +162,7 @@ update-repo-database() {
     local build_arch_dir="${BUILD_DIR}/${ARCH}"
     local db_file="${REPO_NAME}.db.tar.gz"
     
-    log-info "Updating repository database..."
+    log.info "Updating repository database..."
     
     pushd "$build_arch_dir" > /dev/null
     
@@ -169,7 +176,9 @@ update-repo-database() {
     
     popd > /dev/null
     
-    log-success "Repository database updated"
+    echo ""
+    log.success "Repository database updated"
+    echo ""
 }
 
 
@@ -179,12 +188,12 @@ generate-landing-page() {
     local output="${BUILD_DIR}/index.html"
     
     if [[ ! -f "$template" ]]; then
-        log-warn "Landing page template not found: $template. Skipping generation."
+        log.warn "Landing page template not found: $template. Skipping generation."
         return
     fi
     
     echo ""
-    log-info "Generating static landing page..."
+    log.info "Generating landing pages..."
     
     local package_rows=""
     local pkg_count
@@ -210,6 +219,7 @@ generate-landing-page() {
     local content
     content=$(<"$template")
     content="${content//\{\{REPO_NAME\}\}/$REPO_NAME}"
+    content="${content//\{\{REPO_URL\}\}/$REPO_URL}"
     
     # Inject Timestamp
     content="${content//\{\{LAST_UPDATED\}\}/$(date -Iminutes)}"
@@ -221,48 +231,53 @@ generate-landing-page() {
         echo "$content" > "${output}.tmp"
         
         if diff -q -I 'id="last-updated"' "$output" "${output}.tmp" >/dev/null; then
-            log-info "Landing page content unchanged (ignoring timestamp). Skipping update."
+            log "   Unchanged: Landing page."
             rm "${output}.tmp"
         else
             mv "${output}.tmp" "$output"
-            log-success "Landing page updated at ${output}"
+            log.success "   Updated: Landing page."
         fi
     else
         echo "$content" > "$output"
-        log-success "Landing page generated at ${output}"
+        log.success "   Generated: Landing page."
     fi
     
     # Copy icon if exists
     if [[ -f "src/icon.png" ]]; then
         if [[ ! -f "$BUILD_DIR/icon.png" ]] || ! cmp -s "src/icon.png" "$BUILD_DIR/icon.png"; then
             cp "src/icon.png" "$BUILD_DIR/"
-            log-success "Copied icon.png to build directory"
+            log.success "   Copied icon.png"
         fi
     fi
     
-    # Generate Repository README
+    # Generate Repo README
     if [[ -f "src/repo-README.md" ]]; then
         local readme_out="$BUILD_DIR/README.md"
         if [[ ! -f "$readme_out" ]] || ! cmp -s "src/repo-README.md" "$readme_out"; then
             cp "src/repo-README.md" "$readme_out"
-            log-success "Repository README updated at $readme_out"
+            log.success "   Generated: Repo README."
         else
-             log-info "Repository README unchanged."
+             log "   Unchanged: Repo README."
         fi
     fi
 }
 
 
+# Get list of valid packages from packages.yml
+get-valid-packages() {
+    yq '.packages[].name' "$PACKAGES_FILE"
+}
+
 # Clean up unused AUR clones
 cleanup-aur() {
-    log-info "Cleaning up AUR cache..."
+    log.info "Cleaning up AUR cache..."
     
     if [[ ! -d "$AUR_CLONE_DIR" ]]; then
         return
     fi
-
+    
     local valid_pkgs
-    valid_pkgs=$(yq '.packages[].name' "$PACKAGES_FILE")
+    valid_pkgs=$(get-valid-packages)
     
     for dir in "$AUR_CLONE_DIR"/*; do
         [[ -d "$dir" ]] || continue
@@ -271,33 +286,119 @@ cleanup-aur() {
         
         # Check if package is in the valid list
         if ! echo "$valid_pkgs" | grep -q "^${pkg_name}$"; then
-            log-warn "Removing unused AUR clone: $pkg_name"
+            log.warn "Removing unused AUR clone: $pkg_name"
             rm -rf "$dir"
         fi
     done
 }
 
+# Clean up repo database and artifacts for removed packages
+cleanup-repo() {
+    log.info "Cleaning up repository database..."
+    
+    local build_arch_dir="${BUILD_DIR}/${ARCH}"
+    local db_file="${REPO_NAME}.db.tar.gz"
+    
+    if [[ ! -d "$build_arch_dir" ]]; then
+        return
+    fi
+    
+    local valid_pkgs
+    valid_pkgs=$(get-valid-packages)
+
+    pushd "$build_arch_dir" > /dev/null
+    
+    # Iterate through ALL files to catch junk
+    for pkg_file in *; do
+        [[ -f "$pkg_file" ]] || continue
+
+        # Skip known metadata files
+        if [[ "$pkg_file" == "${REPO_NAME}.db"* ]] || \
+           [[ "$pkg_file" == "${REPO_NAME}.files"* ]] || \
+           [[ "$pkg_file" == "index.html"* ]] || \
+           [[ "$pkg_file" == "README.md" ]] || \
+           [[ "$pkg_file" == "icon.png" ]]; then
+            continue
+        fi
+        
+        local extracted_name=""
+        local is_valid_artifact=false
+
+        # Check if it has a valid package extension
+        if [[ "$pkg_file" == *.pkg.tar.zst ]] || [[ "$pkg_file" == *.pkg.tar.xz ]]; then
+            is_valid_artifact=true
+            local base="${pkg_file%.pkg.tar*}"    # Remove extension
+            local temp="${base%-*}"               # Remove -ARCH
+            temp="${temp%-*}"                     # Remove -RELEASE
+            extracted_name="${temp%-*}"           # Remove -VERSION
+        else
+            is_valid_artifact=false
+        fi
+        
+        local is_valid_pkg=false
+        
+        if [[ "$is_valid_artifact" == "true" ]]; then
+            if echo "$valid_pkgs" | grep -qx "$extracted_name"; then
+                is_valid_pkg=true
+            fi
+        fi
+        
+        if [[ "$is_valid_pkg" == "false" ]]; then
+             if [[ "$is_valid_artifact" == "true" ]]; then
+                 log.warn "     Removing stale artifact: $pkg_file (extracted: $extracted_name)"
+                 repo-remove "$db_file" "${extracted_name}" 2>/dev/null || true
+             else
+                 log.warn "     Removing junk file: $pkg_file"
+             fi
+             rm -f "$pkg_file"
+        fi
+    done
+    rm -rf *.old
+    
+    popd > /dev/null
+
+    # Cleanup root build directory
+    if [[ -d "$BUILD_DIR" ]]; then
+        pushd "$BUILD_DIR" > /dev/null
+        for item in *; do
+            [[ -e "$item" ]] || continue
+            
+            # Allowlist
+            if [[ "$item" == "$ARCH" ]] || \
+               [[ "$item" == "index.html" ]] || \
+               [[ "$item" == "README.md" ]] || \
+               [[ "$item" == "icon.png" ]]; then
+                continue
+            fi
+            
+            log.warn "     Removing junk file (root): $item"
+            rm -rf "$item"
+        done
+        popd > /dev/null
+    fi
+}
+
 # Main function
 main() {
     echo ""
-    log-info "Starting AUR package build process"
+    log.warn "Starting AUR package build process\n"
     
     # Validate requirements
     if ! command -v yq &> /dev/null; then
-        log-info "yq not found, installing..."
-        sudo pacman -S --noconfirm go-yq || {
-            log-error "Failed to install yq"
+        log.info "yq not found, installing..."
+        sudo pacman -S --needed --noconfirm go-yq || {
+            log.error "Failed to install yq"
             exit 1
         }
     fi
     
     if ! command -v makepkg &> /dev/null; then
-        log-error "makepkg is required but not installed (should be in base-devel)"
+        log.error "makepkg is required but not installed (should be in base-devel)"
         exit 1
     fi
     
     if [[ ! -f "$PACKAGES_FILE" ]]; then
-        log-error "Package file not found: $PACKAGES_FILE"
+        log.error "Package file not found: $PACKAGES_FILE"
         exit 1
     fi
     
@@ -307,7 +408,7 @@ main() {
     # Get number of packages
     local pkg_count
     pkg_count=$(yq '.packages | length' "$PACKAGES_FILE")
-    log-info "Found ${pkg_count} packages in ${PACKAGES_FILE}"
+    log.info "Found ${pkg_count} packages in ${PACKAGES_FILE}"
     
     local built_count=0
     local skipped_count=0
@@ -322,11 +423,11 @@ main() {
         force_build=$(yq ".packages[$i].force // false" "$PACKAGES_FILE")
         
         echo ""
-        log-info "Processing package: ${pkg_name}"
+        log.info "Processing package: ${pkg_name}"
         
         # Clone/update from AUR
         if ! clone-aur-package "$pkg_name"; then
-            log-error "Failed to clone ${pkg_name}"
+            log.error "Failed to clone ${pkg_name}"
             ((failed_count++))
             continue
         fi
@@ -336,23 +437,23 @@ main() {
         repo_version=$(get-repo-version "$pkg_name")
         aur_version=$(get-aur-version "${AUR_CLONE_DIR}/${pkg_name}")
         
-        log-info "  Repo version: ${repo_version:-<not in repo>}"
-        log-info "  AUR version:  ${aur_version}"
+        log "     Repo version: ${repo_version:-<not in repo>}"
+        log "     AUR version:  ${aur_version}"
         
         # Determine if we need to build
         local needs_build=false
         
         if [[ -z "$repo_version" ]]; then
-            log-warn "Package not in repo, building..."
+            log.warn "Package not in repo, building..."
             needs_build=true
         elif [[ "$repo_version" != "$aur_version" ]]; then
-            log-warn "Version mismatch, building..."
+            log.warn "Version mismatch, building..."
             needs_build=true
         elif [[ "$force_build" == "true" ]]; then
-            log-warn "Force flag set, building..."
+            log.warn "Force flag set, building..."
             needs_build=true
         else
-            log-info "Up-to-date, skipping"
+            log.success "Up-to-date, skipping"
             ((skipped_count++)) || true
         fi
 
@@ -365,27 +466,38 @@ main() {
             echo ""
         fi
     done
+
+    echo ""
     
     # Update repo database if any packages were built
     if [[ $built_count -gt 0 ]]; then
         update-repo-database
     fi
-    
-    # Summary
-    echo ""
-    log-info "Build Summary:"
-    log-info "  Built:   ${built_count}"
-    log-info "  Skipped: ${skipped_count}"
-    log-info "  Failed:  ${failed_count}"
-    
+       
     # Cleanup unused AUR repos
     cleanup-aur
+    
+    # Cleanup stale repo packages
+    cleanup-repo
 
     # Generate landing page
     generate-landing-page
     
+    # Summary
+    echo ""
+    log.info    "Build Summary:"
+    log.success "   Built:   ${built_count}"
+    log.warn    "   Skipped: ${skipped_count}"
+    log.error   "   Failed:  ${failed_count}"
+
+    echo ""
     if [[ $failed_count -gt 0 ]]; then
+        log.error "Build failed for ${failed_count} packages"
+        echo ""
         exit 1
+    else
+        log.success "Build completed successfully"
+        echo ""
     fi
 }
 
