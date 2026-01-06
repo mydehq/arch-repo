@@ -3,6 +3,7 @@ packages:
   - name: myctl
   - name: mytm
   - name: nautilus-dummy
+  - name: nsticky-bin
 
   # 3rd party
   - name: kireisakura-kit
