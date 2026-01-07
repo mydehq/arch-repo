@@ -10,8 +10,8 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 
-# Logging functions (MyTM style)
-log()         { echo -e "${BLUE}-${NC} $*" >&2; }
+# Logging functions
+log()         { echo -e "${BLUE}-${NC} $*" >&2;    }
 log.info()    { echo -e "${BLUE}i $* ${NC}" >&2;   }
 log.success() { echo -e "${GREEN}+ $* ${NC}" >&2;  }
 log.warn()    { echo -e "${YELLOW}! $* ${NC}" >&2; }
@@ -27,10 +27,8 @@ has-cmd() {
     return 2
   }
 
-  # Iterate over every argument passed to the function
   for cmd_str in "$@"; do
-    cmd_bin="${cmd_str%% *}" # first token before any space
-
+    cmd_bin="${cmd_str%% *}"
 
     if ! command -v "$cmd_bin" &>/dev/null; then
       exit_code=1
@@ -40,37 +38,39 @@ has-cmd() {
   return "$exit_code"
 }
 
+clear -x && echo ""
 
-# Check if running as root
-if [ "$EUID" -ne 0 ]; then
-    log.error "Please run as root (e.g. curl ... | sudo bash)"
-    exit 1
-fi
+log.info "Adding {{REPO_NAME}} repository..."
 
 # Check if running on Arch Linux
 if [[ ! -f /etc/arch-release ]]; then
-    log.error "Why are you trying to install Arch repo in non-Arch Linux system?"
+    log.error "Why are you trying to install Arch repo in non-Arch Linux system?\n"
     exit 1
 fi
 
 # Check for required commands
 if ! has-cmd "pacman curl grep sed"; then
-    log.error "Missing required commands: pacman, curl, grep, sed"
+    log.error "Missing required commands: pacman, curl, grep, sed\n"
     exit 1
 fi
 
+# Check for existing entry
 if grep -q "\[{{REPO_NAME}}\]" /etc/pacman.conf; then
-    log.warn "Repository [{{REPO_NAME}}] already exists in /etc/pacman.conf"
+    log.warn "Repository already exists in pacman.conf"
 else
-    log.info "Adding [{{REPO_NAME}}] repository to /etc/pacman.conf..."
-    cat <<EOF >> /etc/pacman.conf
-
+    log.info "Adding repository to pacman.conf..."
+    sudo -p "? Enter your password: " bash -c "cat <<'EOF' >> /etc/pacman.conf
 [{{REPO_NAME}}]
 SigLevel = Optional TrustAll
 Server = {{REPO_URL}}/\$arch
-EOF
+EOF" < /dev/tty
     log.success "Repository added."
 fi
 
+echo ""
 log.info "Syncing database..."
-pacman -Sy
+sudo -p "? Enter your password: " pacman -Sy < /dev/tty
+
+echo ""
+log.success "Repository setup complete! Enjoy Our Packages!"
+echo ""

@@ -8,13 +8,12 @@
 
 <br />
 
-
 ## Installation
 
 Run the following command to add the repository:
 
 ```sh
-curl -sL https://mydehq.github.io/arch-repo/install | sudo bash
+curl -sL https://mydehq.github.io/arch-repo/install | bash
 ```
 
 ## Adding Packages in repo
@@ -28,6 +27,7 @@ packages:
     - name: vicinae-bin
     - name: catppuccin-cursors-macchiato
 ```
+
 The GitHub Action will automatically detect changes, build the packages, update the repository index, and regenerate the dashboard.
 
 ---
@@ -51,12 +51,10 @@ arch-repo/
 - **Build Environment**: Native Arch Linux (`archlinux:latest`) container.
 - **Build Logic**: Uses `makepkg` with dependency handling.
 
-
 ## Related Resources
 
 - **Main Repository**: [mydehq/MyDE](https://github.com/mydehq/myde)
 - **Wiki Repository**: [mydehq/MyWiki](https://github.com/mydehq/mydehq.github.io)
-
 
 ---
 
