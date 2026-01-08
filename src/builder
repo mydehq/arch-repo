@@ -291,7 +291,7 @@ generate-landing-page() {
 
         # Build individual row
         package_rows+="<tr>"
-        package_rows+="<td class='ps-3'><a href='https://aur.archlinux.org/packages/${pkg_name}' target='_blank' class='package-name text-decoration-none'>${pkg_name}</a></td>"
+        package_rows+="<td class='ps-3'><a href='$AUR_BASE_URL/packages/${pkg_name}' target='_blank' class='package-name text-decoration-none'>${pkg_name}</a></td>"
         package_rows+="<td class='text-center'><span class='badge rounded-pill badge-version'>${pkg_version}</span></td>"
         package_rows+="<td class='text-end pe-3 text-secondary'>${ARCH}</td>"
         package_rows+="</tr>"
@@ -698,15 +698,15 @@ main() {
     # Cleanup unused AUR repos and stale repo packages
     cleanup
 
-    # Generate landing page
-    generate-landing-page
-
     # Summary
     log
     log.info    "Build Summary:"
     log.success "   Built:   ${#BUILT_PKG_FILES[@]}"
     log.warn    "   Skipped: ${skipped_count}"
     log.error   "   Failed:  ${failed_count}"
+
+    # Generate landing page
+    generate-landing-page
 
     log
     if [[ $failed_count -gt 0 ]]; then
