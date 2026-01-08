@@ -1,6 +1,6 @@
 <div align="center">
-    <img src="./src/icon.png" alt="MyTM" width="80">
-    <h1>Arch Repo</h1>
+    <img src="./src/icon.png" alt="MyRepo Logo" width="80">
+    <h1>My Repo</h1>
     <p>
         <b>Automated AUR package building and repository hosting.</b>
     </p>
@@ -13,7 +13,7 @@
 Run the following command to add the repository:
 
 ```sh
-curl -sL https://mydehq.github.io/arch-repo/install | bash
+curl -sL https://mydehq.github.io/my-repo/install | bash
 ```
 
 ## Adding Packages in repo
@@ -35,11 +35,14 @@ The GitHub Action will automatically detect changes, build the packages, update 
 ## Repository Structure
 
 ```text
-arch-repo/
+my-repo/
 ├── src/
 │   ├── builder              # Core build logic & site generator
-│   └── index.html.tpl       # PC-Optimized Dashboard template
-├── packages.yml             # Declarative package list
+│   ├── index.html           # Dashboard template
+│   ├── repo-README.md       # Repo branch README
+│   ├── install.sh           # Repository installer script
+│   └── icon.png             # Repository icon
+├── config.yml               # Declarative package list
 ├── .github/
 │   └── workflows/
 │       └── build.yml        # Automation pipeline

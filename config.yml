@@ -1,7 +1,7 @@
 meta:
-  repo-name: mydehq
-  repo-url: https://mydehq.github.io/arch-repo
-  project-url: https://github.com/mydehq/arch-repo
+  repo-name: my-repo
+  repo-url: https://mydehq.github.io/my-repo
+  project-url: https://github.com/mydehq/my-repo
 
 packages:
   aur:

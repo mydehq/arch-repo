@@ -44,7 +44,7 @@ log.info "Adding {{REPO_NAME}} repository..."
 
 # Check if running on Arch Linux
 if [[ ! -f /etc/arch-release ]]; then
-    log.error "Why are you trying to install Arch repo in non-Arch Linux system?\n"
+    log.error "This is an Arch Linux repository. Please use an Arch-based system.\n"
     exit 1
 fi
 
