@@ -10,7 +10,7 @@ on:
 
   schedule:
     # Run every 8 hours (00:00, 08:00, 16:00 UTC)
-    - cron: '47 */8 * * *'
+    - cron: "47 */8 * * *"
 
   workflow_dispatch:
 
@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: archlinux:latest
-    
+
     env:
       CARGO_HOME: ${{ github.workspace }}/.cargo
       CARGO_TARGET_DIR: ${{ github.workspace }}/.cargo/target
@@ -56,6 +56,9 @@ jobs:
 
       - name: Configure Git
         run: |
+          # Install git & other deps
+          pacman -Syu --noconfirm --needed base-devel git go-yq diffutils
+
           git config --global user.name "Soumadip Das"
           git config --global user.email "84225810+soymadip@users.noreply.github.com"
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
@@ -96,9 +99,6 @@ jobs:
 
       - name: Build packages
         run: |
-          # Install requierd deps
-          pacman -Syu --noconfirm --needed base-devel git go-yq diffutils
-
           # Disable debug package generation
           sed -i 's/OPTIONS=(.*debug.*/OPTIONS=(!debug)/' /etc/makepkg.conf
 
