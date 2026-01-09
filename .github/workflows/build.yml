@@ -49,14 +49,6 @@ jobs:
             ${{ env.GOCACHE }}/
             ${{ env.GOMODCACHE }}/
 
-      - name: Setup Arch Linux environment
-        run: |
-          pacman -Syu --noconfirm
-          pacman -S --noconfirm --needed base-devel git go-yq diffutils
-
-          # Disable debug package generation
-          sed -i 's/OPTIONS=(.*debug.*/OPTIONS=(!debug)/' /etc/makepkg.conf
-
       - name: Checkout main branch
         uses: actions/checkout@v4
         with:
@@ -104,6 +96,12 @@ jobs:
 
       - name: Build packages
         run: |
+          # Install requierd deps
+          pacman -Syu --noconfirm --needed base-devel git go-yq diffutils
+
+          # Disable debug package generation
+          sed -i 's/OPTIONS=(.*debug.*/OPTIONS=(!debug)/' /etc/makepkg.conf
+
           su builder -c "export CARGO_HOME=$CARGO_HOME; export CARGO_TARGET_DIR=$CARGO_TARGET_DIR; export GOCACHE=$GOCACHE; export GOMODCACHE=$GOMODCACHE; bash src/builder"
 
       - name: Publish to repo branch
